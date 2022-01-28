@@ -1,0 +1,4 @@
+/.idea
+/dockerfiles/mysql/data
+/dockerfiles/config/noip/noip.conf
+/dockerfiles/config/ssl_certs

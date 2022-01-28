@@ -1,0 +1,80 @@
+version: '3.1'
+services:
+  mysql:
+    image: mariadb:10.6
+    container_name: mysql
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: database
+      MYSQL_USER: database
+      MYSQL_PASSWORD: database
+      MYSQL_ROOT_PASSWORD: database
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    volumes:
+      - './dockerfiles/mysql/data:/var/lib/mysql/'
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_ARBITRARY: 1
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: database
+      PMA_PASSWORD: database
+    ports:
+      - '8080:80'
+
+  php:
+    build:
+      context: ./dockerfiles
+      dockerfile: php.dockerfile
+      args:
+        - UID=${UID:-1000}
+        - GID=${GID:-1000}
+    container_name: php
+    restart: unless-stopped
+    volumes:
+      - ./src:/var/www/html:delegated
+
+  site:
+    build:
+      context: ./dockerfiles
+      dockerfile: nginx.dockerfile
+      args:
+        - UID=${UID:-1000}
+        - GID=${GID:-1000}
+    container_name: nginx
+    restart: unless-stopped
+    volumes:
+      - ./src:/var/www/html:delegated
+    depends_on:
+      - php
+      - mysql
+
+  noip:
+    image: coppit/no-ip
+    container_name: noip
+    restart: unless-stopped
+    volumes:
+      - /etc/localtime:/etc/localtime
+      - ./dockerfiles/config/noip:/config
+
+  https-portal:
+    image: 'steveltn/https-portal:1'
+    depends_on:
+      - web
+    ports:
+      - '80:80'
+      - '443:443'
+    restart: always
+    volumes:
+      - './dockerfiles/config/ssl_certs:/var/lib/https-portal'
+    environment:
+      DOMAINS: 'exemple.test -> http://site:80 #local'
+      CLIENT_MAX_BODY_SIZE: 64M
